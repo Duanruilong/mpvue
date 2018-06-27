@@ -88,6 +88,38 @@ describe('指令', () => {
     )
   })
 
+  it('v-if && v-for', () => {
+    assertCodegen(
+      `<div><p v-if="item.length" v-for="item in list"></p></div>`,
+      `<template name="a"><view class="_div"><view wx:if="{{item.length}}" wx:for="{{list}}" wx:for-index="index" wx:for-item="item" class="_p"></view></view></template>`,
+      { name: 'a' }
+    )
+  })
+
+  it('v-if && event', () => {
+    assertCodegen(
+      `<div v-if="item.length" @click="clickHandle"></div>`,
+      `<template name="a"><view wx:if="{{item.length}}" bindtap="handleProxy" data-eventid="{{'0'}}" data-comkey="{{$k}}" class="_div"></view></template>`,
+      { name: 'a' }
+    )
+  })
+
+  it('v-if && v-for && event', () => {
+    assertCodegen(
+      `<div><p v-if="item.length" v-for="item in list" @click="clickHandle"></p></div>`,
+      `<template name="a"><view class="_div"><view wx:if="{{item.length}}" bindtap="handleProxy" data-eventid="{{'0-'+index}}" data-comkey="{{$k}}" wx:for="{{list}}" wx:for-index="index" wx:for-item="item" class="_p"></view></view></template>`,
+      { name: 'a' }
+    )
+  })
+
+  it('v-for && event', () => {
+    assertCodegen(
+      `<div><p v-for="item in list" @click="clickHandle"></p></div>`,
+      `<template name="a"><view class="_div"><view bindtap="handleProxy" data-eventid="{{'0-'+index}}" data-comkey="{{$k}}" wx:for="{{list}}" wx:for-index="index" wx:for-item="item" class="_p"></view></view></template>`,
+      { name: 'a' }
+    )
+  })
+
   it('v-bind', () => {
     assertCodegen(
       `<div :a="s"></div>`,
@@ -185,12 +217,17 @@ describe('指令', () => {
   it('v-bind:style', () => {
     assertCodegen(
       `<div v-bind:style="{ color: activeColor, fontSize: fontSize + 'px' }">111</div>`,
-      `<template name="a"><view class="_div" style=" {{('color:' + activeColor + ';' + 'font-size:' + fontSize + 'px' + ';')}}">111</view></template>`,
+      `<template name="a"><view class="_div" style=" {{('color:' + activeColor + ';' + 'font-size:' + (fontSize + 'px') + ';')}}">111</view></template>`,
+      { name: 'a' }
+    )
+    assertCodegen(
+      `<div v-bind:style="{ color: a === b ? activeColor : color, fontSize: fontSize + 'px' }">111</div>`,
+      `<template name="a"><view class="_div" style=" {{(  'color:' +  (a === b ? activeColor : color) +  ';' +  'font-size:' +  (fontSize + 'px') +  ';')}}">111</view></template>`,
       { name: 'a' }
     )
     assertCodegen(
       `<div v-bind:style="[{ color: activeColor, fontSize: fontSize + 'px' }]">111</div>`,
-      `<template name="a"><view class="_div" style=" {{['color:' + activeColor + ';' + 'font-size:' + fontSize + 'px' + ';']}}">111</view></template>`,
+      `<template name="a"><view class="_div" style=" {{['color:' + activeColor + ';' + 'font-size:' + (fontSize + 'px') + ';']}}">111</view></template>`,
       { name: 'a' }
     )
     assertCodegen(
@@ -242,6 +279,14 @@ describe('指令', () => {
     )
   })
 
+  it('v-html', () => {
+    assertCodegen(
+      `<div v-html="s"></div>`,
+      `<template name="a"><rich-text nodes="{{s}}" class="_div"></rich-text></template>`,
+      { name: 'a' }
+    )
+  })
+
   it('v-if', () => {
     assertCodegen(
       `<div v-if="s"></div>`,
@@ -288,6 +333,30 @@ describe('事件', () => {
     )
   })
 
+  it('@click.stop', () => {
+    assertCodegen(
+      `<a @click.stop="ddd"></a>`,
+      `<template name="a"><view catchtap="handleProxy" data-eventid="{{'0'}}" data-comkey="{{$k}}" class="_a"></view></template>`,
+      { name: 'a' }
+    )
+  })
+
+  it('@click.stop.capture', () => {
+    assertCodegen(
+      `<a @click.stop.capture="ddd"></a>`,
+      `<template name="a"><view capture-catch:tap="handleProxy" data-eventid="{{'0'}}" data-comkey="{{$k}}" class="_a"></view></template>`,
+      { name: 'a' }
+    )
+  })
+
+  it('@click.capture', () => {
+    assertCodegen(
+      `<a @click.capture="ddd"></a>`,
+      `<template name="a"><view capture-bind:tap="handleProxy" data-eventid="{{'0'}}" data-comkey="{{$k}}" class="_a"></view></template>`,
+      { name: 'a' }
+    )
+  })
+
   it('@load', () => {
     assertCodegen(
       `<a @load="ddd"></a>`,
@@ -327,7 +396,7 @@ describe('事件', () => {
   it('v-else', () => {
     assertCodegen(
       `<div><div v-if="type === 'A'" @click="logger('A')">A</div><div v-else-if="type === 'B'" @click="logger('B')">B</div><div v-else-if="type === 'C'" @click="logger('C')">C</div><div v-else @click="logger('Not A/B/C')">Not A/B/C</div></div>`,
-      `<template name="a"><view class="_div"><view wx:if="{{type === 'A'}}" bindtap="handleProxy" data-eventid="{{'4'}}" data-comkey="{{$k}}" class="_div">A</view><view wx:elif="{{type === 'B'}}" bindtap="handleProxy" data-eventid="{{'1'}}" data-comkey="{{$k}}" class="_div">B</view><view wx:elif="{{type === 'C'}}" bindtap="handleProxy" data-eventid="{{'2'}}" data-comkey="{{$k}}" class="_div">C</view><view wx:else bindtap="handleProxy" data-eventid="{{'3'}}" data-comkey="{{$k}}" class="_div">Not A/B/C</view></view></template>`,
+      `<template name="a"><view class="_div"><view wx:if="{{type === 'A'}}" bindtap="handleProxy" data-eventid="{{'3'}}" data-comkey="{{$k}}" class="_div">A</view><view wx:elif="{{type === 'B'}}" bindtap="handleProxy" data-eventid="{{'0'}}" data-comkey="{{$k}}" class="_div">B</view><view wx:elif="{{type === 'C'}}" bindtap="handleProxy" data-eventid="{{'1'}}" data-comkey="{{$k}}" class="_div">C</view><view wx:else bindtap="handleProxy" data-eventid="{{'2'}}" data-comkey="{{$k}}" class="_div">Not A/B/C</view></view></template>`,
       { name: 'a' }
     )
   })
@@ -381,6 +450,13 @@ describe('表单', () => {
     assertCodegen(
       `<input v-model.number="age" type="number">`,
       `<template name="a"><input value="{{age}}" bindinput="handleProxy" type="number" data-eventid="{{'0'}}" data-comkey="{{$k}}" class="_input" /></template>`,
+      { name: 'a' }
+    )
+  })
+  it('radio', () => {
+    assertCodegen(
+      `<radio><text>233</text></radio>`,
+      `<template name="a"><radio class="_radio"><text class="_text">233</text></radio></template>`,
       { name: 'a' }
     )
   })
@@ -459,7 +535,7 @@ describe('slot', () => {
   it('插槽', () => {
     assertCodegen(
       `<div><slot>test</slot></div>`,
-      `<template name="a"><view class="_div testModuleId"><template name="default">test</template><template data="{{...$root[$p], $root}}" is="{{$slotdefault || 'default'}}"></template></view></template>`,
+      `<template name="a"><view class="_div testModuleId"><template name="default">test</template><template data="{{...$root[$k], $root}}" is="{{$slotdefault || 'default'}}"></template></view></template>`,
       {
         name: 'a',
         moduleId: 'testModuleId'
@@ -470,7 +546,7 @@ describe('slot', () => {
   it('使用', () => {
     assertCodegen(
       `<div><slot name="w">test</slot></div>`,
-      `<template name="a"><view class="_div"><template name="w">test</template><template data="{{...$root[$p], $root}}" is="{{$slotw || 'w'}}"></template></view></template>`,
+      `<template name="a"><view class="_div"><template name="w">test</template><template data="{{...$root[$k], $root}}" is="{{$slotw || 'w'}}"></template></view></template>`,
       {
         name: 'a'
       }

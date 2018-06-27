@@ -3,6 +3,7 @@ const { createInstance } = require('../helpers/index')
 // 生命周期
 describe('init mpvue with lifecycle', function () {
   const onLifecycle = []
+  const getOptions = {}
 
   function getComponentOptions (key = '') {
     return {
@@ -38,13 +39,16 @@ describe('init mpvue with lifecycle', function () {
         onLifecycle.push(`destroyed${key}`)
       },
       // lifycycle for wxmp
-      onLaunch () {
+      onLaunch (opt) {
+        getOptions.onLaunch = opt
         onLifecycle.push(`onLaunch${key}`)
       },
-      onLoad () {
+      onLoad (opt) {
+        getOptions.onLoad = opt
         onLifecycle.push(`onLoad${key}`)
       },
-      onShow () {
+      onShow (opt) {
+        getOptions.onShow = opt
         onLifecycle.push(`onShow${key}`)
       },
       onReady () {
@@ -67,6 +71,19 @@ describe('init mpvue with lifecycle', function () {
       },
       onPageScroll () {
         onLifecycle.push(`pageScroll${key}`)
+      },
+      // custom component lifecycle
+      attached () {
+        onLifecycle.push(`attached${key}`)
+      },
+      ready () {
+        onLifecycle.push(`ready${key}`)
+      },
+      moved () {
+        onLifecycle.push(`moved${key}`)
+      },
+      detached () {
+        onLifecycle.push(`detached${key}`)
       }
     }
   }
@@ -83,11 +100,14 @@ describe('init mpvue with lifecycle', function () {
     app.$mount()
     expect(onLifecycle).toEqual(['beforeCreate', 'created', 'onLaunch', 'beforeMount', 'mounted', 'onShow'])
     expect(!!app.$mp.app).toEqual(true)
-    expect(app.$mp.appOptions).toEqual({
+    const opt = {
       path: 'pages/index/index',
       scene: 1001,
       query: {}
-    })
+    }
+    expect(app.$mp.appOptions).toEqual(opt)
+    expect(getOptions.onLaunch).toEqual(opt)
+    expect(getOptions.onShow).toEqual(opt)
     expect(app.$mp.mpType).toEqual('app')
     expect(app.$mp.status).toEqual('show')
   })
@@ -108,6 +128,7 @@ describe('init mpvue with lifecycle', function () {
     expect(onLifecycle).toEqual(['beforeCreate', 'created', 'onLoad', 'onShow', 'onReady', 'beforeMount', 'mounted'])
     expect(!!app.$mp.page).toEqual(true)
     expect(app.$mp.query).toEqual({})
+    expect(getOptions.onLoad).toEqual({})
     expect(app.$mp.appOptions).toEqual({
       path: 'pages/index/index',
       scene: 1001,
@@ -228,5 +249,102 @@ describe('init mpvue with lifecycle', function () {
     app.$mp.page._callHook('onUnload')
     expect(app.$mp.status).toEqual('unload')
     expect(onLifecycle).toEqual(['beforeCreate', 'created', 'onLoad', 'onShow', 'onReady', 'beforeMount', 'mounted', 'pullDownRefresh', 'reachBottom', 'shareAppMessage', 'pageScroll', 'unload'])
+  })
+
+  it('Component with render', function () {
+    const options = Object.assign(getComponentOptions(), {
+      mpType: 'component',
+      render () {
+        var _vm = this
+        var _h = _vm.$createElement
+        var _c = _vm._self._c || _h
+        return _c('div', {
+          staticClass: 'container'
+        }, [], 1)
+      }
+    })
+
+    const app = createInstance(options)
+    app.$mount()
+    expect(onLifecycle).toEqual(['beforeCreate', 'created', 'attached', 'ready', 'beforeMount', 'mounted'])
+    expect(!!app.$mp.page).toEqual(true)
+    expect(app.$mp.mpType).toEqual('component')
+    expect(app.$mp.status).toEqual('ready')
+  })
+
+  it('Component with component', function () {
+    const warpOptions = Object.assign(getComponentOptions('-warp'), {
+      render () {
+        var _vm = this
+        var _h = _vm.$createElement
+        var _c = _vm._self._c || _h
+        return _c('div', {
+          staticClass: 'container'
+        }, [_vm._v('warp component')], 1)
+      }
+    })
+    const options = Object.assign(getComponentOptions(), {
+      mpType: 'component',
+      components: {
+        warp: warpOptions
+      },
+      render () {
+        var _vm = this
+        var _h = _vm.$createElement
+        var _c = _vm._self._c || _h
+        return _c('div', {
+          staticClass: 'container'
+        }, [_c('warp')], 1)
+      }
+    })
+    const app = createInstance(options)
+    app.$mount()
+
+    expect(onLifecycle).toEqual([
+      'beforeCreate',
+      'created',
+      'attached',
+      'ready',
+      'beforeMount',
+      'beforeCreate-warp',
+      'created-warp',
+      'onLoad-warp',
+      'onReady-warp',
+      'beforeMount-warp',
+      'mounted-warp',
+      'mounted'
+    ])
+    expect(!!app.$mp.page).toEqual(true)
+    expect(app.$mp.mpType).toEqual('component')
+    expect(app.$mp.status).toEqual('ready')
+  })
+
+  it('Component with customEvent', function () {
+    const options = Object.assign(getComponentOptions(), {
+      mpType: 'component',
+      render () {
+        var _vm = this
+        var _h = _vm.$createElement
+        var _c = _vm._self._c || _h
+        return _c('div', {
+          staticClass: 'container'
+        }, [], 1)
+      }
+    })
+    const app = createInstance(options)
+    app.$mount()
+    expect(onLifecycle).toEqual(['beforeCreate', 'created', 'attached', 'ready', 'beforeMount', 'mounted'])
+    expect(!!app.$mp.page).toEqual(true)
+    expect(app.$mp.mpType).toEqual('component')
+    expect(app.$mp.status).toEqual('ready')
+
+    // moved
+    app.$mp.page._callHook('moved')
+    expect(onLifecycle).toEqual(['beforeCreate', 'created', 'attached', 'ready', 'beforeMount', 'mounted', 'moved'])
+
+    // detached
+    app.$mp.page._callHook('detached')
+    expect(app.$mp.status).toEqual('detached')
+    expect(onLifecycle).toEqual(['beforeCreate', 'created', 'attached', 'ready', 'beforeMount', 'mounted', 'moved', 'detached'])
   })
 })
